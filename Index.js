@@ -1,223 +1,9 @@
-
-
-// const express = require("express");
-// const mongoose = require("mongoose");
-// const cors = require("cors");
-// const swaggerUi = require("swagger-ui-express");
-// const swaggerJsDoc = require("swagger-jsdoc");
-// require("dotenv").config();
-
-// const app = express();
-
-// // Middleware
-// app.use(cors());
-// app.use(express.json());
-
-// // Swagger Configuração
-// const swaggerOptions = {
-//   swaggerDefinition: {
-//     openapi: "3.0.0",
-//     info: {
-//       title: "Nutricare API",
-//       version: "1.0.0",
-//       description: "API da Nutricare para gerenciar informações do site",
-//     },
-//     servers: [
-//       {
-//         url: process.env.BASE_URL || "http://localhost:3000",
-//         description: "Servidor local",
-//       },
-//     ],
-//   },
-//   apis: ["./index.js"], // Define onde os comentários com Swagger estão localizados
-// };
-
-// const swaggerDocs = swaggerJsDoc(swaggerOptions);
-// app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
-
-// // Conexão com o MongoDB
-// mongoose
-//   .connect(process.env.MONGODB_URI, {
-//     useNewUrlParser: true,
-//     useUnifiedTopology: true,
-//   })
-//   .then(() => console.log("MongoDB conectado"))
-//   .catch((err) => console.error(err));
-
-// // Modelos
-// const Header = mongoose.model(
-//   "Header",
-//   new mongoose.Schema({
-//     phone: { type: String, required: true },
-//     whatsapp: { type: String, required: true },
-//     email: { type: String, required: true },
-//     logo: { type: String, required: true },
-//     socialLinks: [{ type: String }],
-//   })
-// );
-
-// // Rotas
-
-// /**
-//  * @swagger
-//  * /header:
-//  *   get:
-//  *     summary: Retorna as informações do header
-//  *     responses:
-//  *       200:
-//  *         description: Lista de informações do header
-//  *         content:
-//  *           application/json:
-//  *             schema:
-//  *               type: object
-//  *               properties:
-//  *                 phone:
-//  *                   type: string
-//  *                   description: Telefone de contato
-//  *                 whatsapp:
-//  *                   type: string
-//  *                   description: Número do WhatsApp
-//  *                 email:
-//  *                   type: string
-//  *                   description: E-mail de contato
-//  *                 logo:
-//  *                   type: string
-//  *                   description: URL da logo
-//  *                 socialLinks:
-//  *                   type: array
-//  *                   items:
-//  *                     type: string
-//  */
-// app.get("/header", async (req, res) => {
-//   const headers = await Header.find();
-//   res.json(headers);
-// });
-
-// /**
-//  * @swagger
-//  * /header:
-//  *   post:
-//  *     summary: Adiciona uma nova configuração ao header
-//  *     requestBody:
-//  *       required: true
-//  *       content:
-//  *         application/json:
-//  *           schema:
-//  *             type: object
-//  *             properties:
-//  *               phone:
-//  *                 type: string
-//  *                 description: Telefone de contato
-//  *               whatsapp:
-//  *                 type: string
-//  *                 description: Número do WhatsApp
-//  *               email:
-//  *                 type: string
-//  *                 description: E-mail de contato
-//  *               logo:
-//  *                 type: string
-//  *                 description: URL da logo
-//  *               socialLinks:
-//  *                 type: array
-//  *                 items:
-//  *                   type: string
-//  *     responses:
-//  *       201:
-//  *         description: Header criado com sucesso
-//  */
-// app.post("/header", async (req, res) => {
-//   const { phone, whatsapp, email, logo, socialLinks } = req.body;
-//   if (!phone || !whatsapp || !email || !logo) {
-//     return res
-//       .status(400)
-//       .json({ message: "Campos obrigatórios estão faltando" });
-//   }
-//   const header = new Header({ phone, whatsapp, email, logo, socialLinks });
-//   await header.save();
-//   res.status(201).json(header);
-// });
-
-// /**
-//  * @swagger
-//  * /header/{id}:
-//  *   put:
-//  *     summary: Atualiza as informações do header
-//  *     parameters:
-//  *       - in: path
-//  *         name: id
-//  *         required: true
-//  *         schema:
-//  *           type: string
-//  *         description: ID do header
-//  *     requestBody:
-//  *       required: true
-//  *       content:
-//  *         application/json:
-//  *           schema:
-//  *             type: object
-//  *             properties:
-//  *               phone:
-//  *                 type: string
-//  *                 description: Telefone de contato
-//  *               whatsapp:
-//  *                 type: string
-//  *                 description: Número do WhatsApp
-//  *               email:
-//  *                 type: string
-//  *                 description: E-mail de contato
-//  *               logo:
-//  *                 type: string
-//  *                 description: URL da logo
-//  *               socialLinks:
-//  *                 type: array
-//  *                 items:
-//  *                   type: string
-//  *     responses:
-//  *       200:
-//  *         description: Header atualizado com sucesso
-//  */
-// app.put("/header/:id", async (req, res) => {
-//   const { id } = req.params;
-//   const updatedHeader = await Header.findByIdAndUpdate(id, req.body, {
-//     new: true,
-//   });
-//   res.json(updatedHeader);
-// });
-
-// /**
-//  * @swagger
-//  * /header/{id}:
-//  *   delete:
-//  *     summary: Remove uma configuração do header
-//  *     parameters:
-//  *       - in: path
-//  *         name: id
-//  *         required: true
-//  *         schema:
-//  *           type: string
-//  *         description: ID do header
-//  *     responses:
-//  *       204:
-//  *         description: Header removido com sucesso
-//  */
-// app.delete("/header/:id", async (req, res) => {
-//   const { id } = req.params;
-//   await Header.findByIdAndDelete(id);
-//   res.status(204).send();
-// });
-
-// // Inicia o servidor
-// const PORT = process.env.PORT || 3000;
-// app.listen(PORT, () => {
-//   console.log(`Servidor rodando na porta ${PORT}`);
-// });
-
-
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsDoc = require("swagger-jsdoc");
+
 require("dotenv").config();
 
 const app = express();
@@ -226,9 +12,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Swagger Configuração
+// Swagger Configuration
 const swaggerOptions = {
-  definition: {
+  swaggerDefinition: {
     openapi: "3.0.0",
     info: {
       title: "Nutricare API",
@@ -237,180 +23,382 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: "http://localhost:3000",
+        url: process.env.BASE_URL || "http://localhost:3000",
         description: "Servidor local",
       },
       {
-        url: process.env.BASE_URL || "https://api-nutricare-1.onrender.com",
+        url: "https://api-nutricare-1.onrender.com",
         description: "Servidor de produção",
       },
     ],
   },
-  apis: ["./index.js"], // Garante que os comentários do Swagger estão sendo lidos
+  apis: ["./index.js"], // Atualize este caminho caso o arquivo seja renomeado
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-// Conexão com o MongoDB
+// Conexão ao MongoDB
 mongoose
   .connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("MongoDB conectado"))
-  .catch((err) => console.error(err));
+  .then(() => console.log("MongoDB connected"))
+  .catch((err) => console.log(err));
 
-// Modelos
-const Header = mongoose.model(
-  "Header",
-  new mongoose.Schema({
-    phone: { type: String, required: true },
-    whatsapp: { type: String, required: true },
-    email: { type: String, required: true },
-    logo: { type: String, required: true },
-    socialLinks: [{ type: String }],
-  })
-);
+// Schemas
+const ContactSchema = new mongoose.Schema({
+  phone: { type: String, required: true },
+  email: { type: String, required: true },
+  social: [{ type: String }],
+});
+
+const HeaderSchema = new mongoose.Schema({
+  logo: { type: String, required: true },
+  contacts: [ContactSchema],
+});
+
+const SlideSchema = new mongoose.Schema({
+    image: { type: String, required: true },
+    title: { type: String, required: true },
+    description: { type: String, required: true },
+    buttonText: { type: String, required: true },
+    buttonLink: { type: String, required: true },
+    position: { type: String, enum: ["left", "center", "right"], default: "center" },
+  });
+
+const Contact = mongoose.model("Contact", ContactSchema);
+const Header = mongoose.model("Header", HeaderSchema);
+const Slide = mongoose.model("Slide", SlideSchema);
 
 // Rotas
-
 /**
  * @swagger
- * components:
- *   schemas:
- *     Header:
- *       type: object
- *       required:
- *         - phone
- *         - whatsapp
- *         - email
- *         - logo
- *       properties:
- *         phone:
- *           type: string
- *           description: Telefone de contato
- *         whatsapp:
- *           type: string
- *           description: Número do WhatsApp
- *         email:
- *           type: string
- *           description: E-mail de contato
- *         logo:
- *           type: string
- *           description: URL da logo
- *         socialLinks:
- *           type: array
- *           items:
- *             type: string
- *           description: Links das redes sociais
- */
-
-/**
- * @swagger
- * /header:
+ * /api/contacts:
  *   get:
- *     summary: Retorna as informações do header
- *     tags: [Header]
+ *     summary: Retorna todos os contatos
  *     responses:
  *       200:
- *         description: Lista de informações do header
+ *         description: Sucesso
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/Header'
+ *                 type: object
+ *                 properties:
+ *                   phone:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   social:
+ *                     type: array
+ *                     items:
+ *                       type: string
  */
-app.get("/header", async (req, res) => {
-  const headers = await Header.find();
-  res.json(headers);
+app.get("/api/contacts", async (req, res) => {
+  try {
+    const contacts = await Contact.find();
+    res.json(contacts);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao buscar contatos" });
+  }
 });
 
 /**
  * @swagger
- * /header:
+ * /api/contacts:
  *   post:
- *     summary: Adiciona uma nova configuração ao header
- *     tags: [Header]
+ *     summary: Adiciona um novo contato
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Header'
+ *             type: object
+ *             properties:
+ *               phone:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               social:
+ *                 type: array
+ *                 items:
+ *                   type: string
  *     responses:
  *       201:
- *         description: Header criado com sucesso
+ *         description: Contato criado
+ *       400:
+ *         description: Erro de validação
  */
-app.post("/header", async (req, res) => {
-  const { phone, whatsapp, email, logo, socialLinks } = req.body;
-  if (!phone || !whatsapp || !email || !logo) {
-    return res
-      .status(400)
-      .json({ message: "Campos obrigatórios estão faltando" });
+app.post("/api/contacts", async (req, res) => {
+  try {
+    const contact = new Contact(req.body);
+    await contact.save();
+    res.status(201).json(contact);
+  } catch (error) {
+    res.status(400).json({ error: "Erro ao criar contato" });
   }
-  const header = new Header({ phone, whatsapp, email, logo, socialLinks });
-  await header.save();
-  res.status(201).json(header);
 });
 
 /**
  * @swagger
- * /header/{id}:
+ * /api/contacts/{id}:
  *   put:
- *     summary: Atualiza as informações do header
- *     tags: [Header]
+ *     summary: Atualiza um contato existente
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
- *         description: ID do header
+ *         description: ID do contato
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Header'
+ *             type: object
+ *             properties:
+ *               phone:
+ *                 type: string
+ *               whatsapp:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               socialLinks:
+ *                 type: array
+ *                 items:
+ *                   type: string
  *     responses:
  *       200:
- *         description: Header atualizado com sucesso
+ *         description: Contato atualizado
  */
-app.put("/header/:id", async (req, res) => {
-  const { id } = req.params;
-  const updatedHeader = await Header.findByIdAndUpdate(id, req.body, {
-    new: true,
+app.put("/api/contacts/:id", async (req, res) => {
+    try {
+      const contact = await Contact.findByIdAndUpdate(req.params.id, req.body, { new: true });
+      res.json(contact);
+    } catch (error) {
+      res.status(400).json({ error: "Erro ao atualizar contato" });
+    }
   });
-  res.json(updatedHeader);
+
+/**
+ * @swagger
+ * /api/header:
+ *   get:
+ *     summary: Retorna o cabeçalho com as informações de contato e logo
+ *     responses:
+ *       200:
+ *         description: Sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 logo:
+ *                   type: string
+ *                 contacts:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       phone:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       social:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ */
+app.get("/api/header", async (req, res) => {
+  try {
+    const header = await Header.findOne();
+    res.json(header);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao buscar cabeçalho" });
+  }
 });
 
 /**
  * @swagger
- * /header/{id}:
- *   delete:
- *     summary: Remove uma configuração do header
- *     tags: [Header]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do header
+ * /api/header:
+ *   put:
+ *     summary: Atualiza o cabeçalho com novas informações
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               logo:
+ *                 type: string
+ *               contacts:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     phone:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     social:
+ *                       type: array
+ *                       items:
+ *                         type: string
  *     responses:
- *       204:
- *         description: Header removido com sucesso
+ *       200:
+ *         description: Cabeçalho atualizado
+ *       400:
+ *         description: Erro de validação
  */
-app.delete("/header/:id", async (req, res) => {
-  const { id } = req.params;
-  await Header.findByIdAndDelete(id);
-  res.status(204).send();
+app.put("/api/header", async (req, res) => {
+  try {
+    const header = await Header.findOneAndUpdate({}, req.body, { new: true });
+    res.json(header);
+  } catch (error) {
+    res.status(400).json({ error: "Erro ao atualizar cabeçalho" });
+  }
 });
 
-// Inicia o servidor
+// Rotas do Carrossel
+/**
+ * @swagger
+ * /api/slides:
+ *   get:
+ *     summary: Retorna todos os slides do carrossel
+ *     responses:
+ *       200:
+ *         description: Lista de slides
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ */
+app.get("/api/slides", async (req, res) => {
+    try {
+      const slides = await Slide.find();
+      res.json(slides);
+    } catch (error) {
+      res.status(500).json({ error: "Erro ao buscar slides" });
+    }
+  });
+  
+  /**
+   * @swagger
+   * /api/slides:
+   *   post:
+   *     summary: Adiciona um novo slide ao carrossel
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               image:
+   *                 type: string
+   *               title:
+   *                 type: string
+   *               description:
+   *                 type: string
+   *               buttonText:
+   *                 type: string
+   *               buttonLink:
+   *                 type: string
+   *               position:
+   *                 type: string
+   *                 enum: [left, center, right]
+   *     responses:
+   *       201:
+   *         description: Slide criado
+   */
+  app.post("/api/slides", async (req, res) => {
+    try {
+      const slide = new Slide(req.body);
+      await slide.save();
+      res.status(201).json(slide);
+    } catch (error) {
+      res.status(400).json({ error: "Erro ao criar slide" });
+    }
+  });
+  
+  /**
+   * @swagger
+   * /api/slides/{id}:
+   *   put:
+   *     summary: Atualiza um slide existente
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do slide
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               image:
+   *                 type: string
+   *               title:
+   *                 type: string
+   *               description:
+   *                 type: string
+   *               buttonText:
+   *                 type: string
+   *               buttonLink:
+   *                 type: string
+   *               position:
+   *                 type: string
+   *                 enum: [left, center, right]
+   *     responses:
+   *       200:
+   *         description: Slide atualizado
+   */
+  app.put("/api/slides/:id", async (req, res) => {
+    try {
+      const slide = await Slide.findByIdAndUpdate(req.params.id, req.body, { new: true });
+      res.json(slide);
+    } catch (error) {
+      res.status(400).json({ error: "Erro ao atualizar slide" });
+    }
+  });
+  
+  /**
+   * @swagger
+   * /api/slides/{id}:
+   *   delete:
+   *     summary: Deleta um slide
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do slide
+   *     responses:
+   *       200:
+   *         description: Slide deletado
+   */
+  app.delete("/api/slides/:id", async (req, res) => {
+    try {
+      await Slide.findByIdAndDelete(req.params.id);
+      res.json({ message: "Slide deletado com sucesso" });
+    } catch (error) {
+      res.status(404).json({ error: "Slide não encontrado" });
+    }
+  });
+
+// Porta
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+
