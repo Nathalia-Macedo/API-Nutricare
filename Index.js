@@ -104,7 +104,6 @@
 
 const express = require('express');
 const mongoose = require('mongoose');
-const path = require('path');
 const cors = require('cors');
 require('dotenv').config();
 const app = express();
@@ -161,16 +160,6 @@ app.post('/api/recipes', async (req, res) => {
 });
 
 // Outras rotas da API podem ser adicionadas aqui...
-
-// **Certifique-se de que as rotas da API vêm antes de servir os arquivos estáticos**
-
-// Servir arquivos estáticos do React
-app.use(express.static(path.join(__dirname, '../build')));
-
-// Qualquer rota não definida retorna o React
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../build', 'index.html'));
-});
 
 // Porta dinâmica
 const PORT = process.env.PORT || 3000;
