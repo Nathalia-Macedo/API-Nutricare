@@ -32,7 +32,7 @@ const swaggerOptions = {
       },
     ],
   },
-  apis: ["./index.js"], // Atualize este caminho caso o arquivo seja renomeado
+  apis: ["**/*.js"], // Atualize este caminho caso o arquivo seja renomeado
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
@@ -68,6 +68,21 @@ const SlideSchema = new mongoose.Schema({
     position: { type: String, enum: ["left", "center", "right"], default: "center" },
   });
 
+  const AboutSchema = new mongoose.Schema({
+    title: { type: String, required: true },
+    highlightedName: { type: String, required: true },
+    image: { type: String, required: true },
+    description: { type: [String], required: true },
+    cards: [
+      {
+        title: { type: String, required: true },
+        icon: { type: String, required: true },
+        description: { type: String, required: true },
+      },
+    ],
+  });
+
+const About = mongoose.model("About", AboutSchema);
 const Contact = mongoose.model("Contact", ContactSchema);
 const Header = mongoose.model("Header", HeaderSchema);
 const Slide = mongoose.model("Slide", SlideSchema);
@@ -395,6 +410,72 @@ app.get("/api/slides", async (req, res) => {
       res.json({ message: "Slide deletado com sucesso" });
     } catch (error) {
       res.status(404).json({ error: "Slide não encontrado" });
+    }
+  });
+
+
+// Rotas de Sobre Nós
+/**
+ * @swagger
+ * /api/about:
+ *   get:
+ *     summary: Retorna as informações da seção "Sobre Nós"
+ *     responses:
+ *       200:
+ *         description: Informações da seção "Sobre Nós"
+ */
+app.get("/api/about", async (req, res) => {
+    try {
+      const about = await About.findOne();
+      res.json(about);
+    } catch (error) {
+      res.status(500).json({ error: "Erro ao buscar informações sobre nós" });
+    }
+  });
+  
+  /**
+   * @swagger
+   * /api/about:
+   *   post:
+   *     summary: Cria ou atualiza as informações da seção "Sobre Nós"
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               title:
+   *                 type: string
+   *               highlightedName:
+   *                 type: string
+   *               image:
+   *                 type: string
+   *               description:
+   *                 type: array
+   *                 items:
+   *                   type: string
+   *               cards:
+   *                 type: array
+   *                 items:
+   *                   type: object
+   *                   properties:
+   *                     title:
+   *                       type: string
+   *                     icon:
+   *                       type: string
+   *                     description:
+   *                       type: string
+   *     responses:
+   *       201:
+   *         description: Informações da seção "Sobre Nós" criadas ou atualizadas
+   */
+  app.post("/api/about", async (req, res) => {
+    try {
+      const about = await About.findOneAndUpdate({}, req.body, { upsert: true, new: true });
+      res.status(201).json(about);
+    } catch (error) {
+      res.status(400).json({ error: "Erro ao criar ou atualizar informações sobre nós" });
     }
   });
 
