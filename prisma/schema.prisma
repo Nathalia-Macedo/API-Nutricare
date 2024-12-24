@@ -1,0 +1,74 @@
+// Prisma schema (prisma/schema.prisma)
+
+// Generator configuration for Prisma Client
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Datasource configuration for MongoDB
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
+
+// Model for Professionals
+model Professional {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  specialty   String
+  contact     String
+  createdAt   DateTime @default(now())
+}
+
+// Model for Recipes
+model Recipe {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  ingredients String[]
+  instructions String
+  createdAt   DateTime @default(now())
+}
+
+// Model for Blog Posts
+model Blog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  content     String
+  category    String
+  createdAt   DateTime @default(now())
+}
+
+// Model for Specialties
+model Specialty {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String
+  createdAt   DateTime @default(now())
+}
+
+// Model for Contacts
+model Contact {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  email       String
+  phone       String
+  address     String
+  createdAt   DateTime @default(now())
+}
+
+// Model for Services
+model Service {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String
+  icon        String
+  createdAt   DateTime @default(now())
+}
+
+// Model for Home Highlights (e.g., sections like "Ajudamos você")
+model Highlight {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  subtitle    String
+  image       String
+  createdAt   DateTime @default(now())
+}
