@@ -32,7 +32,7 @@ const swaggerOptions = {
       },
     ],
   },
-  apis: ["**/*.js"], // Atualize este caminho caso o arquivo seja renomeado
+  apis: ["./index.js"], // Atualize este caminho caso o arquivo seja renomeado
 };
 
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
