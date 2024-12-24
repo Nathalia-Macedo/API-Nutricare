@@ -82,10 +82,33 @@ const SlideSchema = new mongoose.Schema({
     ],
   });
 
+  const SpecialtySchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    description: { type: String, required: true },
+    icon: { type: String, required: true },
+  });
+
+  const BlogSchema = new mongoose.Schema({
+    title: { type: String, required: true },
+    description: { type: String, required: true },
+    cards: [
+      {
+        tags: [String],
+        image: { type: String, required: true },
+        title: { type: String, required: true },
+        description: { type: String, required: true },
+      },
+    ],
+  });
+
 const About = mongoose.model("About", AboutSchema);
 const Contact = mongoose.model("Contact", ContactSchema);
 const Header = mongoose.model("Header", HeaderSchema);
 const Slide = mongoose.model("Slide", SlideSchema);
+const Specialty = mongoose.model("Specialty", SpecialtySchema);
+const Blog = mongoose.model("Blog", BlogSchema);
+
+
 
 // Rotas
 /**
@@ -198,7 +221,6 @@ app.put("/api/contacts/:id", async (req, res) => {
       res.status(400).json({ error: "Erro ao atualizar contato" });
     }
   });
-
 /**
  * @swagger
  * /api/header:
@@ -211,27 +233,12 @@ app.put("/api/contacts/:id", async (req, res) => {
  *           application/json:
  *             schema:
  *               type: object
- *               properties:
- *                 logo:
- *                   type: string
- *                 contacts:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       phone:
- *                         type: string
- *                       email:
- *                         type: string
- *                       social:
- *                         type: array
- *                         items:
- *                           type: string
  */
 app.get("/api/header", async (req, res) => {
   try {
-    const header = await Header.findOne();
-    res.json(header);
+    const header = await Header.findOne(); // Busca o único documento da coleção
+    console.log(header)
+    res.json(header || { message: "Nenhuma informação encontrada no Header" });
   } catch (error) {
     res.status(500).json({ error: "Erro ao buscar cabeçalho" });
   }
@@ -241,43 +248,32 @@ app.get("/api/header", async (req, res) => {
  * @swagger
  * /api/header:
  *   put:
- *     summary: Atualiza o cabeçalho com novas informações
+ *     summary: Atualiza ou cria o cabeçalho com novas informações
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             properties:
- *               logo:
- *                 type: string
- *               contacts:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     phone:
- *                       type: string
- *                     email:
- *                       type: string
- *                     social:
- *                       type: array
- *                       items:
- *                         type: string
  *     responses:
  *       200:
- *         description: Cabeçalho atualizado
+ *         description: Cabeçalho atualizado ou criado
  *       400:
  *         description: Erro de validação
  */
 app.put("/api/header", async (req, res) => {
   try {
-    const header = await Header.findOneAndUpdate({}, req.body, { new: true });
+    const header = await Header.findOneAndUpdate({}, req.body, {
+      new: true, // Retorna o documento atualizado
+      upsert: true, // Cria um novo documento caso não exista
+    });
+    console.log(header)
     res.json(header);
   } catch (error) {
-    res.status(400).json({ error: "Erro ao atualizar cabeçalho" });
+    res.status(400).json({ error: "Erro ao atualizar ou criar cabeçalho" });
   }
 });
+
 
 // Rotas do Carrossel
 /**
@@ -476,6 +472,246 @@ app.get("/api/about", async (req, res) => {
       res.status(201).json(about);
     } catch (error) {
       res.status(400).json({ error: "Erro ao criar ou atualizar informações sobre nós" });
+    }
+  });
+
+
+  // Rotas de Especialidades
+/**
+ * @swagger
+ * /api/specialties:
+ *   get:
+ *     summary: Retorna todas as especialidades
+ */
+app.get("/api/specialties", async (req, res) => {
+    try {
+      const specialties = await Specialty.find();
+      res.json(specialties);
+    } catch (error) {
+      res.status(500).json({ error: "Erro ao buscar especialidades" });
+    }
+  });
+  
+  /**
+   * @swagger
+   * /api/specialties:
+   *   post:
+   *     summary: Cria uma nova especialidade
+   */
+  app.post("/api/specialties", async (req, res) => {
+    try {
+      const specialty = new Specialty(req.body);
+      await specialty.save();
+      res.status(201).json(specialty);
+    } catch (error) {
+      res.status(400).json({ error: "Erro ao criar especialidade" });
+    }
+  });
+  
+  /**
+   * @swagger
+   * /api/specialties/{id}:
+   *   put:
+   *     summary: Atualiza uma especialidade existente
+   */
+  app.put("/api/specialties/:id", async (req, res) => {
+    try {
+      const specialty = await Specialty.findByIdAndUpdate(req.params.id, req.body, { new: true });
+      res.json(specialty);
+    } catch (error) {
+      res.status(400).json({ error: "Erro ao atualizar especialidade" });
+    }
+  });
+  
+  /**
+   * @swagger
+   * /api/specialties/{id}:
+   *   delete:
+   *     summary: Deleta uma especialidade
+   */
+  app.delete("/api/specialties/:id", async (req, res) => {
+    try {
+      await Specialty.findByIdAndDelete(req.params.id);
+      res.json({ message: "Especialidade deletada com sucesso" });
+    } catch (error) {
+      res.status(404).json({ error: "Especialidade não encontrada" });
+    }
+  });
+  
+  /**
+   * @swagger
+   * /api/specialties/filter:
+   *   get:
+   *     summary: Filtra especialidades pelo nome
+   */
+  app.get("/api/specialties/filter", async (req, res) => {
+    try {
+      const { name } = req.query;
+      const specialties = await Specialty.find({ name: new RegExp(name, "i") });
+      res.json(specialties);
+    } catch (error) {
+      res.status(400).json({ error: "Erro ao filtrar especialidades" });
+    }
+  });
+
+
+  // Rotas do Blog
+/**
+ * @swagger
+ * /api/blog:
+ *   get:
+ *     summary: Retorna os dados do blog
+ *     responses:
+ *       200:
+ *         description: Dados do blog retornados com sucesso
+ */
+app.get("/api/blog", async (req, res) => {
+    try {
+      const blog = await Blog.findOne();
+      res.json(blog);
+    } catch (error) {
+      res.status(500).json({ error: "Erro ao buscar dados do blog" });
+    }
+  });
+  
+  /**
+   * @swagger
+   * /api/blog:
+   *   post:
+   *     summary: Cria ou atualiza os dados do blog
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *     responses:
+   *       201:
+   *         description: Dados do blog criados ou atualizados com sucesso
+   */
+  app.post("/api/blog", async (req, res) => {
+    try {
+      const blog = await Blog.findOneAndUpdate({}, req.body, { upsert: true, new: true });
+      res.status(201).json(blog);
+    } catch (error) {
+      res.status(400).json({ error: "Erro ao criar ou atualizar dados do blog" });
+    }
+  });
+  
+  /**
+   * @swagger
+   * /api/blog/cards:
+   *   post:
+   *     summary: Adiciona um novo card ao blog
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *     responses:
+   *       201:
+   *         description: Card adicionado com sucesso
+   */
+  app.post("/api/blog/cards", async (req, res) => {
+    try {
+      const blog = await Blog.findOne();
+      blog.cards.push(req.body);
+      await blog.save();
+      res.status(201).json(blog);
+    } catch (error) {
+      res.status(400).json({ error: "Erro ao adicionar card ao blog" });
+    }
+  });
+  
+  /**
+   * @swagger
+   * /api/blog/cards/{id}:
+   *   put:
+   *     summary: Atualiza um card existente do blog
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *     responses:
+   *       200:
+   *         description: Card atualizado com sucesso
+   */
+  app.put("/api/blog/cards/:id", async (req, res) => {
+    try {
+      const blog = await Blog.findOne();
+      const card = blog.cards.id(req.params.id);
+      Object.assign(card, req.body);
+      await blog.save();
+      res.json(blog);
+    } catch (error) {
+      res.status(400).json({ error: "Erro ao atualizar card do blog" });
+    }
+  });
+  
+  /**
+   * @swagger
+   * /api/blog/cards/{id}:
+   *   delete:
+   *     summary: Remove um card do blog
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Card removido com sucesso
+   */
+  app.delete("/api/blog/cards/:id", async (req, res) => {
+    try {
+      const blog = await Blog.findOne();
+      blog.cards.id(req.params.id).remove();
+      await blog.save();
+      res.json({ message: "Card removido com sucesso" });
+    } catch (error) {
+      res.status(400).json({ error: "Erro ao remover card do blog" });
+    }
+  });
+  
+  /**
+   * @swagger
+   * /api/blog/search:
+   *   get:
+   *     summary: Busca no blog por título, descrição ou tags
+   *     parameters:
+   *       - in: query
+   *         name: term
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Termo de busca
+   *     responses:
+   *       200:
+   *         description: Resultados da busca
+   */
+  app.get("/api/blog/search", async (req, res) => {
+    try {
+      const { term } = req.query;
+      const blog = await Blog.findOne();
+      const results = blog.cards.filter(
+        (card) =>
+          card.title.toLowerCase().includes(term.toLowerCase()) ||
+          card.description.toLowerCase().includes(term.toLowerCase()) ||
+          card.tags.some((tag) => tag.toLowerCase().includes(term.toLowerCase()))
+      );
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ error: "Erro ao realizar busca no blog" });
     }
   });
 
