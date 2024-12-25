@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsDoc = require("swagger-jsdoc");
+const nanoid  = require("nanoid");
+
 
 require("dotenv").config();
 
@@ -301,13 +303,37 @@ app.put("/api/header", async (req, res) => {
  *                 type: object
  */
 app.get("/api/slides", async (req, res) => {
-    try {
-      const slides = await Slide.find();
-      res.json(slides);
-    } catch (error) {
-      res.status(500).json({ error: "Erro ao buscar slides" });
-    }
-  });
+  try {
+    const slides = await Slide.find();
+
+    // Atualiza cada slide para substituir o Base64 pela URL curta
+    const updatedSlides = await Promise.all(
+      slides.map(async (slide) => {
+        if (slide.image.startsWith("data:image")) {
+          // Verifica se a imagem está em Base64
+          let existingEntry = await Base64Model.findOne({ data: slide.image });
+
+          // Se não existir, cria um novo slug e salva
+          if (!existingEntry) {
+            const slug = nanoid(8);
+            existingEntry = new Base64Model({ slug, data: slide.image });
+            await existingEntry.save();
+          }
+
+          // Atualiza o campo image com a URL curta
+          slide.image = `${process.env.BASE_URL || "http://localhost:3000"}/api/base64/${existingEntry.slug}`;
+        }
+
+        return slide;
+      })
+    );
+
+    res.json(updatedSlides);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao buscar slides" });
+  }
+});
+
   
   /**
    * @swagger
@@ -340,13 +366,26 @@ app.get("/api/slides", async (req, res) => {
    */
   app.post("/api/slides", async (req, res) => {
     try {
-      const slide = new Slide(req.body);
+      const { image, title, description, buttonText, buttonLink, position } = req.body;
+  
+      let imageUrl = image;
+  
+      if (image.startsWith("data:image")) {
+        const slug = nanoid(8);
+        const base64Entry = new Base64Model({ slug, data: image });
+        await base64Entry.save();
+        imageUrl = `${process.env.BASE_URL || "http://localhost:3000"}/api/base64/${slug}`;
+      }
+  
+      const slide = new Slide({ image: imageUrl, title, description, buttonText, buttonLink, position });
       await slide.save();
+  
       res.status(201).json(slide);
     } catch (error) {
       res.status(400).json({ error: "Erro ao criar slide" });
     }
   });
+  
   
   /**
    * @swagger
@@ -725,7 +764,6 @@ app.get("/api/blog", async (req, res) => {
   });
 
 
-  const { nanoid } = require("nanoid");
 /**
  * @swagger
  * /api/base64:
