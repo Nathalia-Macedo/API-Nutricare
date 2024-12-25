@@ -119,6 +119,15 @@ const Slide = mongoose.model("Slide", SlideSchema);
 const Specialty = mongoose.model("Specialty", SpecialtySchema);
 const Blog = mongoose.model("Blog", BlogSchema);
 
+// Função para gerar IDs customizados
+function generateId(length = 8) {
+  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result;
+}
 
 
 // Rotas
@@ -312,10 +321,9 @@ app.get("/api/slides", async (req, res) => {
         if (typeof slide.image === "string" && slide.image.startsWith("data:image")) {
           // Verifica se já existe uma entrada correspondente no Base64Model
           let existingEntry = await Base64Model.findOne({ data: slide.image });
-
           if (!existingEntry) {
             // Cria uma nova entrada no Base64Model
-            const slug = nanoid(8);
+            const slug = generateId(8); // Gera um ID customizado
             existingEntry = new Base64Model({ slug, data: slide.image });
             await existingEntry.save();
           }
@@ -323,9 +331,6 @@ app.get("/api/slides", async (req, res) => {
           // Atualiza o campo image com a URL curta
           slide.image = `${process.env.BASE_URL || "http://localhost:3000"}/api/base64/${existingEntry.slug}`;
         }
-        console.log("Slide encontrado:", slide);
-        console.log("Imagem inicial:", slide.image);
-        
         return slide;
       })
     );
@@ -367,27 +372,28 @@ app.get("/api/slides", async (req, res) => {
    *       201:
    *         description: Slide criado
    */
-  app.post("/api/slides", async (req, res) => {
-    try {
-      const { image, title, description, buttonText, buttonLink, position } = req.body;
-  
-      let imageUrl = image;
-  
-      if (image.startsWith("data:image")) {
-        const slug = nanoid(8);
-        const base64Entry = new Base64Model({ slug, data: image });
-        await base64Entry.save();
-        imageUrl = `${process.env.BASE_URL || "http://localhost:3000"}/api/base64/${slug}`;
-      }
-  
-      const slide = new Slide({ image: imageUrl, title, description, buttonText, buttonLink, position });
-      await slide.save();
-  
-      res.status(201).json(slide);
-    } catch (error) {
-      res.status(400).json({ error: "Erro ao criar slide" });
+  // Rota POST /api/slides
+app.post("/api/slides", async (req, res) => {
+  try {
+    const { image, title, description, buttonText, buttonLink, position } = req.body;
+
+    let imageUrl = image;
+
+    if (image.startsWith("data:image")) {
+      const slug = generateId(8); // Gera um ID customizado
+      const base64Entry = new Base64Model({ slug, data: image });
+      await base64Entry.save();
+      imageUrl = `${process.env.BASE_URL || "http://localhost:3000"}/api/base64/${slug}`;
     }
-  });
+
+    const slide = new Slide({ image: imageUrl, title, description, buttonText, buttonLink, position });
+    await slide.save();
+
+    res.status(201).json(slide);
+  } catch (error) {
+    res.status(400).json({ error: "Erro ao criar slide" });
+  }
+});
   
   
   /**
