@@ -52,10 +52,12 @@ mongoose
 
 // Schemas
 const ContactSchema = new mongoose.Schema({
-  phone: { type: String, required: true },
+  phone: { type: String, required: true }, // Telefone fixo
+  whatsapp: { type: String, required: true }, // Telefone WhatsApp
   email: { type: String, required: true },
   social: [{ type: String }],
 });
+
 
 const Base64Schema = new mongoose.Schema({
   slug: { type: String, unique: true, required: true },
@@ -264,35 +266,94 @@ app.get("/api/header", async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/header:
- *   put:
- *     summary: Atualiza ou cria o cabeçalho com novas informações
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *     responses:
- *       200:
- *         description: Cabeçalho atualizado ou criado
- *       400:
- *         description: Erro de validação
- */
+/* @swagger
+*   /api/header:
+*     put:
+*       summary: Atualiza ou cria o cabeçalho com novas informações
+*       requestBody:
+*         required: true
+*         content:
+*           application/json:
+*             schema:
+*               type: object
+*               properties:
+*                 logo:
+*                   type: string
+*                   description: URL do logo
+*                 contacts:
+*                   type: array
+*                   items:
+*                     type: object
+*                     properties:
+*                       phone:
+*                         type: string
+*                         description: Telefone fixo
+*                       whatsapp:
+*                         type: string
+*                         description: Telefone WhatsApp
+*                       email:
+*                         type: string
+*                         description: Endereço de e-mail
+*                       social:
+*                         type: array
+*                         items:
+*                           type: string
+*                           description: Links para redes sociais
+*       responses:
+*         200:
+*           description: Cabeçalho atualizado ou criado com sucesso
+*           content:
+*             application/json:
+*               schema:
+*                 type: object
+*                 properties:
+*                   logo:
+*                     type: string
+*                   contacts:
+*                     type: array
+*                     items:
+*                       type: object
+*                       properties:
+*                         phone:
+*                           type: string
+*                         whatsapp:
+*                           type: string
+*                         email:
+*                           type: string
+*                         social:
+*                           type: array
+*                           items:
+*                             type: string
+*         400:
+*          description: Erro de validação
+*/
+
 app.put("/api/header", async (req, res) => {
   try {
-    const header = await Header.findOneAndUpdate({}, req.body, {
-      new: true, // Retorna o documento atualizado
-      upsert: true, // Cria um novo documento caso não exista
-    });
-    console.log(header)
+    const header = await Header.findOneAndUpdate(
+      {},
+      {
+        $set: {
+          logo: req.body.logo,
+          contacts: req.body.contacts.map((contact) => ({
+            phone: contact.phone,
+            whatsapp: contact.whatsapp,
+            email: contact.email,
+            social: contact.social,
+          })),
+        },
+      },
+      {
+        new: true, // Retorna o documento atualizado
+        upsert: true, // Cria um novo documento caso não exista
+      }
+    );
     res.json(header);
   } catch (error) {
     res.status(400).json({ error: "Erro ao atualizar ou criar cabeçalho" });
   }
 });
+
 
 
 // Rotas do Carrossel
