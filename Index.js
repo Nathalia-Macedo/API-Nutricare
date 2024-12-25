@@ -798,7 +798,14 @@ app.get("/api/base64/:slug", async (req, res) => {
       return res.status(404).json({ error: "Slug não encontrado" });
     }
 
-    res.json({ base64: entry.data });
+    // Defina o tipo de dado (exemplo: PNG)
+    const mimeType = "image/png"; // Ajuste para o tipo correto
+    const base64Data = entry.data.replace(/^data:image\/\w+;base64,/, "");
+
+    // Envie a imagem como resposta
+    const buffer = Buffer.from(base64Data, "base64");
+    res.setHeader("Content-Type", mimeType);
+    res.send(buffer);
   } catch (error) {
     res.status(500).json({ error: "Erro ao buscar Base64" });
   }
