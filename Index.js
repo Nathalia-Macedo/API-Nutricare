@@ -9,8 +9,9 @@ require("dotenv").config();
 const app = express();
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" })); // Permite até 10MB no JSON
+app.use(express.urlencoded({ limit: "10mb", extended: true })); // Permite até 10MB em requisições codificadas por URL
+
 
 // Swagger Configuration
 const swaggerOptions = {
