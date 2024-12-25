@@ -55,6 +55,14 @@ const ContactSchema = new mongoose.Schema({
   social: [{ type: String }],
 });
 
+const Base64Schema = new mongoose.Schema({
+  slug: { type: String, unique: true, required: true },
+  data: { type: String, required: true },
+});
+
+const Base64Model = mongoose.model("Base64", Base64Schema);
+
+
 const HeaderSchema = new mongoose.Schema({
   logo: { type: String, required: true },
   contacts: [ContactSchema],
@@ -715,6 +723,87 @@ app.get("/api/blog", async (req, res) => {
       res.status(500).json({ error: "Erro ao realizar busca no blog" });
     }
   });
+
+
+  const { nanoid } = require("nanoid");
+/**
+ * @swagger
+ * /api/base64:
+ *   post:
+ *     summary: Recebe uma string Base64 e retorna uma URL curta
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               base64:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: URL curta criada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 url:
+ *                   type: string
+ */
+
+app.post("/api/base64", async (req, res) => {
+  try {
+    const { base64 } = req.body;
+
+    if (!base64) {
+      return res.status(400).json({ error: "Base64 é obrigatório" });
+    }
+
+    const slug = nanoid(8); // Gerar um identificador único
+    const newEntry = new Base64Model({ slug, data: base64 });
+    await newEntry.save();
+
+    const url = `${process.env.BASE_URL || "http://localhost:3000"}/api/base64/${slug}`;
+    res.status(201).json({ url });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao salvar Base64" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/base64/{slug}:
+ *   get:
+ *     summary: Retorna a string Base64 correspondente ao slug
+ *     parameters:
+ *       - in: path
+ *         name: slug
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Base64 retornado com sucesso
+ *       404:
+ *         description: Slug não encontrado
+ */
+
+app.get("/api/base64/:slug", async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const entry = await Base64Model.findOne({ slug });
+    if (!entry) {
+      return res.status(404).json({ error: "Slug não encontrado" });
+    }
+
+    res.json({ base64: entry.data });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao buscar Base64" });
+  }
+});
+
 
 // Porta
 const PORT = process.env.PORT || 3000;
