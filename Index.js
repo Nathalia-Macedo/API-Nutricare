@@ -309,12 +309,12 @@ app.get("/api/slides", async (req, res) => {
     // Atualiza cada slide para substituir o Base64 pela URL curta
     const updatedSlides = await Promise.all(
       slides.map(async (slide) => {
-        if (slide.image.startsWith("data:image")) {
-          // Verifica se a imagem está em Base64
+        if (typeof slide.image === "string" && slide.image.startsWith("data:image")) {
+          // Verifica se já existe uma entrada correspondente no Base64Model
           let existingEntry = await Base64Model.findOne({ data: slide.image });
 
-          // Se não existir, cria um novo slug e salva
           if (!existingEntry) {
+            // Cria uma nova entrada no Base64Model
             const slug = nanoid(8);
             existingEntry = new Base64Model({ slug, data: slide.image });
             await existingEntry.save();
@@ -323,14 +323,17 @@ app.get("/api/slides", async (req, res) => {
           // Atualiza o campo image com a URL curta
           slide.image = `${process.env.BASE_URL || "http://localhost:3000"}/api/base64/${existingEntry.slug}`;
         }
-
+        console.log("Slide encontrado:", slide);
+        console.log("Imagem inicial:", slide.image);
+        
         return slide;
       })
     );
 
-    res.json(updatedSlides);
+    res.status(200).json(updatedSlides);
   } catch (error) {
-    res.status(500).json({ error: "Erro ao buscar slides" });
+    console.error("Erro ao buscar slides:", error);
+    res.status(400).json({ error: "Erro ao buscar slides" });
   }
 });
 
