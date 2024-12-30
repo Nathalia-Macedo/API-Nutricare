@@ -4,7 +4,8 @@ const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsDoc = require("swagger-jsdoc");
 const nanoid  = require("nanoid");
-
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
 require("dotenv").config();
 
@@ -51,6 +52,16 @@ mongoose
   .catch((err) => console.log(err));
 
 // Schemas
+
+
+
+const UserSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+});
+const User = mongoose.model("User", UserSchema);
+
+
 const ContactSchema = new mongoose.Schema({
   phone: { type: String, required: true }, // Telefone fixo
   whatsapp: { type: String, required: true }, // Telefone WhatsApp
@@ -121,6 +132,35 @@ const Slide = mongoose.model("Slide", SlideSchema);
 const Specialty = mongoose.model("Specialty", SpecialtySchema);
 const Blog = mongoose.model("Blog", BlogSchema);
 
+
+// Funções auxiliares
+function generateToken(user) {
+  const SECRET = process.env.JWT_SECRET || "secret_key";
+  return jwt.sign({ id: user._id, username: user.username }, SECRET, { expiresIn: "1h" });
+}
+
+async function hashPassword(password) {
+  const salt = await bcrypt.genSalt(10);
+  return bcrypt.hash(password, salt);
+}
+
+async function verifyPassword(password, hashedPassword) {
+  return bcrypt.compare(password, hashedPassword);
+}
+
+// Middleware de autenticação
+function authenticateToken(req, res, next) {
+  const token = req.headers["authorization"]?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Token não fornecido" });
+
+  const SECRET = process.env.JWT_SECRET || "secret_key";
+  jwt.verify(token, SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: "Token inválido" });
+    req.user = user;
+    next();
+  });
+}
+
 // Função para gerar IDs customizados
 function generateId(length = 8) {
   const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -133,6 +173,188 @@ function generateId(length = 8) {
 
 
 // Rotas
+
+
+// Rotas de Autenticação
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: Registra um novo usuário
+ *     tags:
+ *       - Autenticação
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: Nome de usuário único
+ *               password:
+ *                 type: string
+ *                 description: Senha do usuário
+ *     responses:
+ *       201:
+ *         description: Usuário registrado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Erro ao registrar usuário
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const hashedPassword = await hashPassword(password);
+    const newUser = new User({ username, password: hashedPassword });
+    await newUser.save();
+    res.status(201).json({ message: "Usuário registrado com sucesso" });
+  } catch (error) {
+    res.status(400).json({ error: "Erro ao registrar usuário" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Realiza login de usuário e retorna um token
+ *     tags:
+ *       - Autenticação
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: Nome de usuário
+ *               password:
+ *                 type: string
+ *                 description: Senha do usuário
+ *     responses:
+ *       200:
+ *         description: Login realizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                   description: Token JWT para autenticação
+ *       401:
+ *         description: Usuário ou senha inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Erro ao realizar login
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = await User.findOne({ username });
+    if (!user) return res.status(401).json({ error: "Usuário ou senha inválidos" });
+
+    const isPasswordValid = await verifyPassword(password, user.password);
+    if (!isPasswordValid) return res.status(401).json({ error: "Usuário ou senha inválidos" });
+
+    const token = generateToken(user);
+    res.json({ token });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao realizar login" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/protected:
+ *   get:
+ *     summary: Rota protegida (apenas para usuários autenticados)
+ *     tags:
+ *       - Autenticação
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Acesso autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     username:
+ *                       type: string
+ *       401:
+ *         description: Token não fornecido ou inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       403:
+ *         description: Token inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+app.get("/api/protected", authenticateToken, (req, res) => {
+  res.json({ message: "Acesso autorizado", user: req.user });
+});
+
+// Outras rotas (exemplo com autenticação opcional)
+app.get("/api/contacts", authenticateToken, async (req, res) => {
+  try {
+    const contacts = await Contact.find();
+    res.json(contacts);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao buscar contatos" });
+  }
+});
+
+
 /**
  * @swagger
  * /api/contacts:
@@ -923,4 +1145,7 @@ app.get("/api/base64/:slug", async (req, res) => {
 // Porta
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+
+
+
 
