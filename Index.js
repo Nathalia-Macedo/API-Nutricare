@@ -349,16 +349,6 @@ app.get("/api/protected", authenticateToken, (req, res) => {
   res.json({ message: "Acesso autorizado", user: req.user });
 });
 
-// Outras rotas (exemplo com autenticação opcional)
-app.get("/api/contacts", authenticateToken, async (req, res) => {
-  try {
-    const contacts = await Contact.find();
-    res.json(contacts);
-  } catch (error) {
-    res.status(500).json({ error: "Erro ao buscar contatos" });
-  }
-});
-
 
 /**
  * @swagger
@@ -384,7 +374,7 @@ app.get("/api/contacts", authenticateToken, async (req, res) => {
  *                     items:
  *                       type: string
  */
-app.get("/api/contacts", authenticateToken, async (req, res) => {
+app.get("/api/contacts", async (req, res) => {
   try {
     const contacts = await Contact.find();
     res.json(contacts);
@@ -483,7 +473,7 @@ app.put("/api/contacts/:id", authenticateToken, async (req, res) => {
  *             schema:
  *               type: object
  */
-app.get("/api/header", authenticateToken, async (req, res) => {
+app.get("/api/header", async (req, res) => {
   try {
     const header = await Header.findOne(); // Busca o único documento da coleção
     console.log(header)
@@ -599,7 +589,7 @@ app.put("/api/header", authenticateToken, async (req, res) => {
  *               items:
  *                 type: object
  */
-app.get("/api/slides", authenticateToken, async (req, res) => {
+app.get("/api/slides", async (req, res) => {
   try {
     const slides = await Slide.find();
 
@@ -818,7 +808,7 @@ app.post("/api/slides", authenticateToken, async (req, res) => {
  */
 
 
-app.get("/api/about", authenticateToken, async (req, res) => {
+app.get("/api/about", async (req, res) => {
   try {
     const about = await About.findOne();
     res.json(about);
@@ -932,7 +922,7 @@ app.post("/api/about", authenticateToken, async (req, res) => {
  *   get:
  *     summary: Retorna todas as especialidades
  */
-app.get("/api/specialties", authenticateToken, async (req, res) => {
+app.get("/api/specialties", async (req, res) => {
     try {
       const specialties = await Specialty.find();
       res.json(specialties);
@@ -993,7 +983,7 @@ app.get("/api/specialties", authenticateToken, async (req, res) => {
    *   get:
    *     summary: Filtra especialidades pelo nome
    */
-  app.get("/api/specialties/filter", authenticateToken, async (req, res) => {
+  app.get("/api/specialties/filter", async (req, res) => {
     try {
       const { name } = req.query;
       const specialties = await Specialty.find({ name: new RegExp(name, "i") });
@@ -1014,7 +1004,7 @@ app.get("/api/specialties", authenticateToken, async (req, res) => {
  *       200:
  *         description: Dados do blog retornados com sucesso
  */
-app.get("/api/blog", authenticateToken, async (req, res) => {
+app.get("/api/blog",  async (req, res) => {
     try {
       const blog = await Blog.findOne();
       res.json(blog);
@@ -1148,7 +1138,7 @@ app.get("/api/blog", authenticateToken, async (req, res) => {
    *       200:
    *         description: Resultados da busca
    */
-  app.get("/api/blog/search", authenticateToken, async (req, res) => {
+  app.get("/api/blog/search", async (req, res) => {
     try {
       const { term } = req.query;
       const blog = await Blog.findOne();
@@ -1228,7 +1218,7 @@ app.post("/api/base64", authenticateToken, async (req, res) => {
  *         description: Slug não encontrado
  */
 
-app.get("/api/base64/:slug", authenticateToken, async (req, res) => {
+app.get("/api/base64/:slug", async (req, res) => {
   try {
     const { slug } = req.params;
 
