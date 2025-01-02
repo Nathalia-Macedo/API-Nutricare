@@ -102,9 +102,14 @@ const SlideSchema = new mongoose.Schema({
         title: { type: String, required: true },
         icon: { type: String, required: true },
         description: { type: String, required: true },
-      },
+        backgroundColor: { type: String, default: "#ffffff" }, // Cor de fundo
+        iconColor: { type: String, default: "#000000" }, // Cor do ícone
+        titleColor: { type: String, default: "#000000" }, // Cor do título
+        descriptionColor: { type: String, default: "#000000" } // Cor da descrição
+      }
     ],
   });
+  
 
   const SpecialtySchema = new mongoose.Schema({
     name: { type: String, required: true },
@@ -379,7 +384,7 @@ app.get("/api/contacts", authenticateToken, async (req, res) => {
  *                     items:
  *                       type: string
  */
-app.get("/api/contacts", async (req, res) => {
+app.get("/api/contacts", authenticateToken, async (req, res) => {
   try {
     const contacts = await Contact.find();
     res.json(contacts);
@@ -414,7 +419,7 @@ app.get("/api/contacts", async (req, res) => {
  *       400:
  *         description: Erro de validação
  */
-app.post("/api/contacts", async (req, res) => {
+app.post("/api/contacts", authenticateToken, async (req, res) => {
   try {
     const contact = new Contact(req.body);
     await contact.save();
@@ -457,7 +462,7 @@ app.post("/api/contacts", async (req, res) => {
  *       200:
  *         description: Contato atualizado
  */
-app.put("/api/contacts/:id", async (req, res) => {
+app.put("/api/contacts/:id", authenticateToken, async (req, res) => {
     try {
       const contact = await Contact.findByIdAndUpdate(req.params.id, req.body, { new: true });
       res.json(contact);
@@ -478,7 +483,7 @@ app.put("/api/contacts/:id", async (req, res) => {
  *             schema:
  *               type: object
  */
-app.get("/api/header", async (req, res) => {
+app.get("/api/header", authenticateToken, async (req, res) => {
   try {
     const header = await Header.findOne(); // Busca o único documento da coleção
     console.log(header)
@@ -550,7 +555,7 @@ app.get("/api/header", async (req, res) => {
 *          description: Erro de validação
 */
 
-app.put("/api/header", async (req, res) => {
+app.put("/api/header", authenticateToken, async (req, res) => {
   try {
     const header = await Header.findOneAndUpdate(
       {},
@@ -594,7 +599,7 @@ app.put("/api/header", async (req, res) => {
  *               items:
  *                 type: object
  */
-app.get("/api/slides", async (req, res) => {
+app.get("/api/slides", authenticateToken, async (req, res) => {
   try {
     const slides = await Slide.find();
 
@@ -656,7 +661,7 @@ app.get("/api/slides", async (req, res) => {
    *         description: Slide criado
    */
   // Rota POST /api/slides
-app.post("/api/slides", async (req, res) => {
+app.post("/api/slides", authenticateToken, async (req, res) => {
   try {
     const { image, title, description, buttonText, buttonLink, position } = req.body;
 
@@ -715,7 +720,7 @@ app.post("/api/slides", async (req, res) => {
    *       200:
    *         description: Slide atualizado
    */
-  app.put("/api/slides/:id", async (req, res) => {
+  app.put("/api/slides/:id", authenticateToken, async (req, res) => {
     try {
       const slide = await Slide.findByIdAndUpdate(req.params.id, req.body, { new: true });
       res.json(slide);
@@ -740,7 +745,7 @@ app.post("/api/slides", async (req, res) => {
    *       200:
    *         description: Slide deletado
    */
-  app.delete("/api/slides/:id", async (req, res) => {
+  app.delete("/api/slides/:id",authenticateToken, async (req, res) => {
     try {
       await Slide.findByIdAndDelete(req.params.id);
       res.json({ message: "Slide deletado com sucesso" });
@@ -751,69 +756,173 @@ app.post("/api/slides", async (req, res) => {
 
 
 // Rotas de Sobre Nós
+
+
 /**
  * @swagger
  * /api/about:
  *   get:
  *     summary: Retorna as informações da seção "Sobre Nós"
+ *     tags:
+ *       - Sobre Nós
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Informações da seção "Sobre Nós"
+ *         description: Informações da seção "Sobre Nós" retornadas com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 title:
+ *                   type: string
+ *                   description: "Título da seção"
+ *                 highlightedName:
+ *                   type: string
+ *                   description: "Nome destacado na seção"
+ *                 image:
+ *                   type: string
+ *                   description: "URL da imagem associada"
+ *                 description:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   description: "Descrição em parágrafos"
+ *                 cards:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       title:
+ *                         type: string
+ *                         description: "Título do card"
+ *                       icon:
+ *                         type: string
+ *                         description: "URL do ícone do card"
+ *                       description:
+ *                         type: string
+ *                         description: "Descrição do card"
+ *                       backgroundColor:
+ *                         type: string
+ *                         description: "Cor de fundo do card (exemplo: #ffffff)"
+ *                       iconColor:
+ *                         type: string
+ *                         description: "Cor do ícone (exemplo: #000000)"
+ *                       titleColor:
+ *                         type: string
+ *                         description: "Cor do título (exemplo: #0000ff)"
+ *                       descriptionColor:
+ *                         type: string
+ *                         description: "Cor da descrição (exemplo: #666666)"
  */
-app.get("/api/about", async (req, res) => {
+
+
+app.get("/api/about", authenticateToken, async (req, res) => {
+  try {
+    const about = await About.findOne();
+    res.json(about);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao buscar informações sobre nós" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/about:
+ *   post:
+ *     summary: Cria ou atualiza as informações da seção "Sobre Nós"
+ *     tags:
+ *       - Sobre Nós
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 description: "Título da seção"
+ *               highlightedName:
+ *                 type: string
+ *                 description: "Nome destacado na seção"
+ *               image:
+ *                 type: string
+ *                 description: "URL da imagem associada"
+ *               description:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: "Descrição em parágrafos"
+ *               cards:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     title:
+ *                       type: string
+ *                       description: "Título do card"
+ *                     icon:
+ *                       type: string
+ *                       description: "URL do ícone do card"
+ *                     description:
+ *                       type: string
+ *                       description: "Descrição do card"
+ *                     backgroundColor:
+ *                       type: string
+ *                       description: "Cor de fundo do card (exemplo: #ffffff)"
+ *                     iconColor:
+ *                       type: string
+ *                       description: "Cor do ícone (exemplo: #000000)"
+ *                     titleColor:
+ *                       type: string
+ *                       description: "Cor do título (exemplo: #0000ff)"
+ *                     descriptionColor:
+ *                       type: string
+ *                       description: "Cor da descrição (exemplo: #666666)"
+ *     responses:
+ *       201:
+ *         description: Informações da seção "Sobre Nós" criadas ou atualizadas com sucesso
+ *       400:
+ *         description: Erro na validação dos dados enviados
+ *       401:
+ *         description: Não autorizado - Token ausente ou inválido
+ *       500:
+ *         description: Erro interno ao criar ou atualizar informações
+ */
+
+
+app.post("/api/about", authenticateToken, async (req, res) => {
     try {
-      const about = await About.findOne();
-      res.json(about);
-    } catch (error) {
-      res.status(500).json({ error: "Erro ao buscar informações sobre nós" });
-    }
-  });
+      const aboutData = {
+        title: req.body.title,
+        highlightedName: req.body.highlightedName,
+        image: req.body.image,
+        description: req.body.description,
+        cards: req.body.cards.map((card) => ({
+          title: card.title,
+          icon: card.icon,
+          description: card.description,
+          backgroundColor: card.backgroundColor || "#ffffff",
+          iconColor: card.iconColor || "#000000",
+          titleColor: card.titleColor || "#000000",
+          descriptionColor: card.descriptionColor || "#000000",
+        })),
+      };
   
-  /**
-   * @swagger
-   * /api/about:
-   *   post:
-   *     summary: Cria ou atualiza as informações da seção "Sobre Nós"
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             properties:
-   *               title:
-   *                 type: string
-   *               highlightedName:
-   *                 type: string
-   *               image:
-   *                 type: string
-   *               description:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *               cards:
-   *                 type: array
-   *                 items:
-   *                   type: object
-   *                   properties:
-   *                     title:
-   *                       type: string
-   *                     icon:
-   *                       type: string
-   *                     description:
-   *                       type: string
-   *     responses:
-   *       201:
-   *         description: Informações da seção "Sobre Nós" criadas ou atualizadas
-   */
-  app.post("/api/about", async (req, res) => {
-    try {
-      const about = await About.findOneAndUpdate({}, req.body, { upsert: true, new: true });
+      const about = await About.findOneAndUpdate({}, aboutData, {
+        upsert: true,
+        new: true,
+      });
       res.status(201).json(about);
     } catch (error) {
       res.status(400).json({ error: "Erro ao criar ou atualizar informações sobre nós" });
     }
   });
+  
 
 
   // Rotas de Especialidades
@@ -823,7 +932,7 @@ app.get("/api/about", async (req, res) => {
  *   get:
  *     summary: Retorna todas as especialidades
  */
-app.get("/api/specialties", async (req, res) => {
+app.get("/api/specialties", authenticateToken, async (req, res) => {
     try {
       const specialties = await Specialty.find();
       res.json(specialties);
@@ -838,7 +947,7 @@ app.get("/api/specialties", async (req, res) => {
    *   post:
    *     summary: Cria uma nova especialidade
    */
-  app.post("/api/specialties", async (req, res) => {
+  app.post("/api/specialties", authenticateToken, async (req, res) => {
     try {
       const specialty = new Specialty(req.body);
       await specialty.save();
@@ -854,7 +963,7 @@ app.get("/api/specialties", async (req, res) => {
    *   put:
    *     summary: Atualiza uma especialidade existente
    */
-  app.put("/api/specialties/:id", async (req, res) => {
+  app.put("/api/specialties/:id", authenticateToken, async (req, res) => {
     try {
       const specialty = await Specialty.findByIdAndUpdate(req.params.id, req.body, { new: true });
       res.json(specialty);
@@ -869,7 +978,7 @@ app.get("/api/specialties", async (req, res) => {
    *   delete:
    *     summary: Deleta uma especialidade
    */
-  app.delete("/api/specialties/:id", async (req, res) => {
+  app.delete("/api/specialties/:id", authenticateToken, async (req, res) => {
     try {
       await Specialty.findByIdAndDelete(req.params.id);
       res.json({ message: "Especialidade deletada com sucesso" });
@@ -884,7 +993,7 @@ app.get("/api/specialties", async (req, res) => {
    *   get:
    *     summary: Filtra especialidades pelo nome
    */
-  app.get("/api/specialties/filter", async (req, res) => {
+  app.get("/api/specialties/filter", authenticateToken, async (req, res) => {
     try {
       const { name } = req.query;
       const specialties = await Specialty.find({ name: new RegExp(name, "i") });
@@ -905,7 +1014,7 @@ app.get("/api/specialties", async (req, res) => {
  *       200:
  *         description: Dados do blog retornados com sucesso
  */
-app.get("/api/blog", async (req, res) => {
+app.get("/api/blog", authenticateToken, async (req, res) => {
     try {
       const blog = await Blog.findOne();
       res.json(blog);
@@ -929,7 +1038,7 @@ app.get("/api/blog", async (req, res) => {
    *       201:
    *         description: Dados do blog criados ou atualizados com sucesso
    */
-  app.post("/api/blog", async (req, res) => {
+  app.post("/api/blog", authenticateToken, async (req, res) => {
     try {
       const blog = await Blog.findOneAndUpdate({}, req.body, { upsert: true, new: true });
       res.status(201).json(blog);
@@ -953,7 +1062,7 @@ app.get("/api/blog", async (req, res) => {
    *       201:
    *         description: Card adicionado com sucesso
    */
-  app.post("/api/blog/cards", async (req, res) => {
+  app.post("/api/blog/cards", authenticateToken, async (req, res) => {
     try {
       const blog = await Blog.findOne();
       blog.cards.push(req.body);
@@ -985,7 +1094,7 @@ app.get("/api/blog", async (req, res) => {
    *       200:
    *         description: Card atualizado com sucesso
    */
-  app.put("/api/blog/cards/:id", async (req, res) => {
+  app.put("/api/blog/cards/:id", authenticateToken, async (req, res) => {
     try {
       const blog = await Blog.findOne();
       const card = blog.cards.id(req.params.id);
@@ -1012,7 +1121,7 @@ app.get("/api/blog", async (req, res) => {
    *       200:
    *         description: Card removido com sucesso
    */
-  app.delete("/api/blog/cards/:id", async (req, res) => {
+  app.delete("/api/blog/cards/:id", authenticateToken, async (req, res) => {
     try {
       const blog = await Blog.findOne();
       blog.cards.id(req.params.id).remove();
@@ -1039,7 +1148,7 @@ app.get("/api/blog", async (req, res) => {
    *       200:
    *         description: Resultados da busca
    */
-  app.get("/api/blog/search", async (req, res) => {
+  app.get("/api/blog/search", authenticateToken, async (req, res) => {
     try {
       const { term } = req.query;
       const blog = await Blog.findOne();
@@ -1082,7 +1191,7 @@ app.get("/api/blog", async (req, res) => {
  *                   type: string
  */
 
-app.post("/api/base64", async (req, res) => {
+app.post("/api/base64", authenticateToken, async (req, res) => {
   try {
     const { base64 } = req.body;
 
@@ -1119,7 +1228,7 @@ app.post("/api/base64", async (req, res) => {
  *         description: Slug não encontrado
  */
 
-app.get("/api/base64/:slug", async (req, res) => {
+app.get("/api/base64/:slug", authenticateToken, async (req, res) => {
   try {
     const { slug } = req.params;
 
