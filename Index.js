@@ -12,7 +12,7 @@ require("dotenv").config();
 const app = express();
 
 // Middleware
-app.use(express.json({ limit: "10mb" })); // Permite até 10MB no JSON
+app.use(express.json({ limit: "30mb" })); 
 app.use(express.urlencoded({ limit: "10mb", extended: true })); // Permite até 10MB em requisições codificadas por URL
 app.use(cors());
 
@@ -939,13 +939,22 @@ app.get("/api/specialties", async (req, res) => {
    */
   app.post("/api/specialties", authenticateToken, async (req, res) => {
     try {
-      const specialty = new Specialty(req.body);
+      const { name, description, icon } = req.body;
+  
+      if (!icon.startsWith("data:image")) {
+        return res.status(400).json({ error: "O campo 'icon' deve estar no formato Base64" });
+      }
+  
+      const specialty = new Specialty({ name, description, icon });
       await specialty.save();
+  
       res.status(201).json(specialty);
     } catch (error) {
-      res.status(400).json({ error: "Erro ao criar especialidade" });
+      console.error("Erro ao criar especialidade:", error);
+      res.status(500).json({ error: "Erro ao criar especialidade" });
     }
   });
+  
   
   /**
    * @swagger
