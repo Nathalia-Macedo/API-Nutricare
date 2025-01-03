@@ -12,9 +12,9 @@ require("dotenv").config();
 const app = express();
 
 // Middleware
+app.use(cors());
 app.use(express.json({ limit: "30mb" })); 
 app.use(express.urlencoded({ limit: "10mb", extended: true })); // Permite até 10MB em requisições codificadas por URL
-app.use(cors());
 
 // Swagger Configuration
 const swaggerOptions = {
@@ -157,6 +157,10 @@ async function verifyPassword(password, hashedPassword) {
 function authenticateToken(req, res, next) {
   const token = req.headers["authorization"]?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Token não fornecido" });
+  console.log("Token recebido:", token);
+  console.error("Erro ao verificar o token:", err); // Log do erro
+
+
 
   const SECRET = process.env.JWT_SECRET || "secret_key";
   jwt.verify(token, SECRET, (err, user) => {
@@ -939,6 +943,7 @@ app.get("/api/specialties", async (req, res) => {
    */
   app.post("/api/specialties", authenticateToken, async (req, res) => {
     try {
+      console.log(req.body)
       const { name, description, icon } = req.body;
   
       if (!icon.startsWith("data:image")) {
@@ -946,6 +951,8 @@ app.get("/api/specialties", async (req, res) => {
       }
   
       const specialty = new Specialty({ name, description, icon });
+      console.log("Especialidade criada (antes de salvar):", specialty);
+
       await specialty.save();
   
       res.status(201).json(specialty);
