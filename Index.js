@@ -14,7 +14,11 @@ const app = express();
 // Middleware
 app.use(express.json({ limit: "30mb" })); 
 app.use(express.urlencoded({ limit: "10mb", extended: true })); // Permite até 10MB em requisições codificadas por URL
-app.use(cors());
+app.use(cors({
+  origin: "https://api-nutricare-1.onrender.com", // Altere para o domínio do seu frontend
+  credentials: true
+}));
+
 
 // Swagger Configuration
 const swaggerOptions = {
