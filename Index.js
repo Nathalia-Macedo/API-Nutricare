@@ -53,6 +53,18 @@ mongoose
 
 // Schemas
 
+const FooterSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  phone: { type: String, required: true }, // Telefone fixo
+  whatsapp: { type: String, required: true }, // WhatsApp
+  email: { type: String, required: true },
+  address: { type: String, required: true },
+});
+
+const Footer = mongoose.model("Footer", FooterSchema);
+
+
 
 
 const UserSchema = new mongoose.Schema({
@@ -157,18 +169,25 @@ async function verifyPassword(password, hashedPassword) {
 function authenticateToken(req, res, next) {
   const token = req.headers["authorization"]?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Token não fornecido" });
-  console.log("Token recebido:", token);
-  console.error("Erro ao verificar o token:", err); // Log do erro
-
-
 
   const SECRET = process.env.JWT_SECRET || "secret_key";
-  jwt.verify(token, SECRET, (err, user) => {
+
+  jwt.verify(token, SECRET, async (err, decoded) => {
     if (err) return res.status(403).json({ error: "Token inválido" });
-    req.user = user;
-    next();
+
+    try {
+      // Busca apenas os campos necessários do usuário
+      const user = await User.findById(decoded.id, "username").lean();
+      if (!user) return res.status(401).json({ error: "Usuário não encontrado" });
+
+      req.user = user; // Adiciona o usuário ao objeto de requisição
+      next();
+    } catch (error) {
+      res.status(500).json({ error: "Erro ao autenticar usuário" });
+    }
   });
 }
+
 
 // Função para gerar IDs customizados
 function generateId(length = 8) {
@@ -183,8 +202,105 @@ function generateId(length = 8) {
 
 // Rotas
 
+/**
+ * @swagger
+ * /api/footer:
+ *   get:
+ *     summary: Retorna as informações do footer
+ *     responses:
+ *       200:
+ *         description: Dados do footer retornados com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 title:
+ *                   type: string
+ *                 description:
+ *                   type: string
+ *                 phone:
+ *                   type: string
+ *                 whatsapp:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 address:
+ *                   type: string
+ */
+app.get("/api/footer", async (req, res) => {
+  try {
+    const footer = await Footer.findOne();
+    res.json(footer || { message: "Nenhuma informação encontrada para o footer" });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao buscar informações do footer" });
+  }
+});
 
-// Rotas de Autenticação
+/**
+ * @swagger
+ * /api/footer:
+ *   post:
+ *     summary: Cria ou atualiza as informações do footer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               whatsapp:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Footer criado ou atualizado com sucesso
+ */
+app.post("/api/footer", authenticateToken, async (req, res) => {
+  try {
+    const { title, description, phone, whatsapp, email, address } = req.body;
+    const footerData = { title, description, phone, whatsapp, email, address };
+
+    const footer = await Footer.findOneAndUpdate({}, footerData, { upsert: true, new: true });
+    res.status(201).json(footer);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao criar ou atualizar footer" });
+  }
+});
+
+/**
+ * @swagger
+ * /api/footer:
+ *   delete:
+ *     summary: Remove as informações do footer
+ *     responses:
+ *       200:
+ *         description: Footer removido com sucesso
+ *       404:
+ *         description: Nenhum dado encontrado para o footer
+ */
+app.delete("/api/footer", authenticateToken, async (req, res) => {
+  try {
+    const footer = await Footer.findOneAndDelete();
+    if (!footer) {
+      return res.status(404).json({ message: "Nenhum dado encontrado para o footer" });
+    }
+    res.json({ message: "Footer removido com sucesso" });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao remover footer" });
+  }
+});
+
+
 /**
  * @swagger
  * /api/auth/register:
@@ -225,18 +341,26 @@ function generateId(length = 8) {
  *                 error:
  *                   type: string
  */
-
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { username, password } = req.body;
-    const hashedPassword = await hashPassword(password);
+
+    // Verifica se o usuário já existe para evitar duplicatas
+    const existingUser = await User.findOne({ username });
+    if (existingUser) return res.status(400).json({ error: "Usuário já existe" });
+
+    // Hash da senha e criação do novo usuário
+    const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({ username, password: hashedPassword });
     await newUser.save();
+
     res.status(201).json({ message: "Usuário registrado com sucesso" });
   } catch (error) {
-    res.status(400).json({ error: "Erro ao registrar usuário" });
+    res.status(500).json({ error: "Erro ao registrar usuário" });
   }
 });
+
+
 
 /**
  * @swagger
@@ -271,38 +395,41 @@ app.post("/api/auth/register", async (req, res) => {
  *                   description: Token JWT para autenticação
  *       401:
  *         description: Usuário ou senha inválidos
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
  *       500:
  *         description: Erro ao realizar login
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
  */
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { username, password } = req.body;
-    const user = await User.findOne({ username });
+
+    // Busca o usuário no banco de dados
+    const user = await User.findOne({ username }).lean();
     if (!user) return res.status(401).json({ error: "Usuário ou senha inválidos" });
 
-    const isPasswordValid = await verifyPassword(password, user.password);
+    // Verifica a senha
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) return res.status(401).json({ error: "Usuário ou senha inválidos" });
 
-    const token = generateToken(user);
+    // Gera o token JWT
+    const token = jwt.sign(
+      { id: user._id, username: user.username },
+      process.env.JWT_SECRET || "secret_key",
+      { expiresIn: "1h" }
+    );
+
     res.json({ token });
   } catch (error) {
     res.status(500).json({ error: "Erro ao realizar login" });
   }
 });
+
+
+
+
+
+
+
+
 
 /**
  * @swagger
@@ -468,112 +595,95 @@ app.put("/api/contacts/:id", authenticateToken, async (req, res) => {
  * @swagger
  * /api/header:
  *   get:
- *     summary: Retorna o cabeçalho com as informações de contato e logo
+ *     summary: Retorna o cabeçalho com as informações de contato e logo.
  *     responses:
  *       200:
- *         description: Sucesso
+ *         description: Sucesso.
  *         content:
  *           application/json:
  *             schema:
  *               type: object
+ *               properties:
+ *                 logo:
+ *                   type: string
+ *                   description: URL do logo.
+ *                 contacts:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       phone:
+ *                         type: string
+ *                       whatsapp:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       social:
+ *                         type: array
+ *                         items:
+ *                           type: string
  */
 app.get("/api/header", async (req, res) => {
   try {
-    const header = await Header.findOne(); // Busca o único documento da coleção
-    console.log(header)
+    const header = await Header.findOne({}, "logo contacts").lean(); // Projeção e lean para performance
     res.json(header || { message: "Nenhuma informação encontrada no Header" });
   } catch (error) {
     res.status(500).json({ error: "Erro ao buscar cabeçalho" });
   }
 });
 
-/* @swagger
-*   /api/header:
-*     put:
-*       summary: Atualiza ou cria o cabeçalho com novas informações
-*       requestBody:
-*         required: true
-*         content:
-*           application/json:
-*             schema:
-*               type: object
-*               properties:
-*                 logo:
-*                   type: string
-*                   description: URL do logo
-*                 contacts:
-*                   type: array
-*                   items:
-*                     type: object
-*                     properties:
-*                       phone:
-*                         type: string
-*                         description: Telefone fixo
-*                       whatsapp:
-*                         type: string
-*                         description: Telefone WhatsApp
-*                       email:
-*                         type: string
-*                         description: Endereço de e-mail
-*                       social:
-*                         type: array
-*                         items:
-*                           type: string
-*                           description: Links para redes sociais
-*       responses:
-*         200:
-*           description: Cabeçalho atualizado ou criado com sucesso
-*           content:
-*             application/json:
-*               schema:
-*                 type: object
-*                 properties:
-*                   logo:
-*                     type: string
-*                   contacts:
-*                     type: array
-*                     items:
-*                       type: object
-*                       properties:
-*                         phone:
-*                           type: string
-*                         whatsapp:
-*                           type: string
-*                         email:
-*                           type: string
-*                         social:
-*                           type: array
-*                           items:
-*                             type: string
-*         400:
-*          description: Erro de validação
-*/
 
+
+/**
+ * @swagger
+ * /api/header:
+ *   put:
+ *     summary: Atualiza ou cria o cabeçalho com novas informações.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               logo:
+ *                 type: string
+ *               contacts:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     phone:
+ *                       type: string
+ *                     whatsapp:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     social:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *     responses:
+ *       201:
+ *         description: Cabeçalho criado ou atualizado com sucesso.
+ *       400:
+ *         description: Erro de validação.
+ */
 app.put("/api/header", authenticateToken, async (req, res) => {
   try {
-    const header = await Header.findOneAndUpdate(
+    const { logo, contacts } = req.body;
+
+    const updatedHeader = await Header.findOneAndUpdate(
       {},
-      {
-        $set: {
-          logo: req.body.logo,
-          contacts: req.body.contacts.map((contact) => ({
-            phone: contact.phone,
-            whatsapp: contact.whatsapp,
-            email: contact.email,
-            social: contact.social,
-          })),
-        },
-      },
-      {
-        new: true, // Retorna o documento atualizado
-        upsert: true, // Cria um novo documento caso não exista
-      }
+      { logo, contacts },
+      { upsert: true, new: true }
     );
-    res.json(header);
+    res.status(201).json(updatedHeader);
   } catch (error) {
     res.status(400).json({ error: "Erro ao atualizar ou criar cabeçalho" });
   }
 });
+
 
 
 
@@ -582,172 +692,164 @@ app.put("/api/header", authenticateToken, async (req, res) => {
  * @swagger
  * /api/slides:
  *   get:
- *     summary: Retorna todos os slides do carrossel
+ *     summary: Retorna todos os slides do carrossel.
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Número da página para paginação.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Número de slides por página.
  *     responses:
  *       200:
- *         description: Lista de slides
+ *         description: Lista de slides.
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
+ *               type: object
+ *               properties:
+ *                 slides:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 total:
+ *                   type: integer
  */
 app.get("/api/slides", async (req, res) => {
+  const { page = 1, limit = 10 } = req.query;
   try {
-    const slides = await Slide.find();
-
-    // Atualiza cada slide para substituir o Base64 pela URL curta
-    const updatedSlides = await Promise.all(
-      slides.map(async (slide) => {
-        if (typeof slide.image === "string" && slide.image.startsWith("data:image")) {
-          // Verifica se já existe uma entrada correspondente no Base64Model
-          let existingEntry = await Base64Model.findOne({ data: slide.image });
-          if (!existingEntry) {
-            // Cria uma nova entrada no Base64Model
-            const slug = generateId(8); // Gera um ID customizado
-            existingEntry = new Base64Model({ slug, data: slide.image });
-            await existingEntry.save();
-          }
-
-          // Atualiza o campo image com a URL curta
-          slide.image = `${process.env.BASE_URL || "http://localhost:3000"}/api/base64/${existingEntry.slug}`;
-        }
-        return slide;
-      })
-    );
-
-    res.status(200).json(updatedSlides);
+    const slides = await Slide.find({}, "title description position image")
+      .skip((page - 1) * limit)
+      .limit(Number(limit))
+      .lean();
+    const total = await Slide.countDocuments();
+    res.json({ slides, total });
   } catch (error) {
-    console.error("Erro ao buscar slides:", error);
-    res.status(400).json({ error: "Erro ao buscar slides" });
+    res.status(500).json({ error: "Erro ao buscar slides" });
   }
 });
 
-  
-  /**
-   * @swagger
-   * /api/slides:
-   *   post:
-   *     summary: Adiciona um novo slide ao carrossel
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             properties:
-   *               image:
-   *                 type: string
-   *               title:
-   *                 type: string
-   *               description:
-   *                 type: string
-   *               buttonText:
-   *                 type: string
-   *               buttonLink:
-   *                 type: string
-   *               position:
-   *                 type: string
-   *                 enum: [left, center, right]
-   *     responses:
-   *       201:
-   *         description: Slide criado
-   */
-  // Rota POST /api/slides
+
+/**
+ * @swagger
+ * /api/slides:
+ *   post:
+ *     summary: Adiciona um novo slide ao carrossel.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               buttonText:
+ *                 type: string
+ *               buttonLink:
+ *                 type: string
+ *               position:
+ *                 type: string
+ *                 enum: [left, center, right]
+ *     responses:
+ *       201:
+ *         description: Slide criado.
+ */
 app.post("/api/slides", authenticateToken, async (req, res) => {
   try {
     const { image, title, description, buttonText, buttonLink, position } = req.body;
 
-    let imageUrl = image;
-
-    if (image.startsWith("data:image")) {
-      const slug = generateId(8); // Gera um ID customizado
-      const base64Entry = new Base64Model({ slug, data: image });
-      await base64Entry.save();
-      imageUrl = `${process.env.BASE_URL || "http://localhost:3000"}/api/base64/${slug}`;
-    }
-
-    const slide = new Slide({ image: imageUrl, title, description, buttonText, buttonLink, position });
+    const slide = new Slide({ image, title, description, buttonText, buttonLink, position });
     await slide.save();
 
     res.status(201).json(slide);
   } catch (error) {
-    res.status(400).json({ error: "Erro ao criar slide" });
+    res.status(500).json({ error: "Erro ao criar slide" });
   }
 });
-  
-  
-  /**
-   * @swagger
-   * /api/slides/{id}:
-   *   put:
-   *     summary: Atualiza um slide existente
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *         description: ID do slide
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             properties:
-   *               image:
-   *                 type: string
-   *               title:
-   *                 type: string
-   *               description:
-   *                 type: string
-   *               buttonText:
-   *                 type: string
-   *               buttonLink:
-   *                 type: string
-   *               position:
-   *                 type: string
-   *                 enum: [left, center, right]
-   *     responses:
-   *       200:
-   *         description: Slide atualizado
-   */
-  app.put("/api/slides/:id", authenticateToken, async (req, res) => {
-    try {
-      const slide = await Slide.findByIdAndUpdate(req.params.id, req.body, { new: true });
-      res.json(slide);
-    } catch (error) {
-      res.status(400).json({ error: "Erro ao atualizar slide" });
-    }
-  });
-  
-  /**
-   * @swagger
-   * /api/slides/{id}:
-   *   delete:
-   *     summary: Deleta um slide
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *         description: ID do slide
-   *     responses:
-   *       200:
-   *         description: Slide deletado
-   */
-  app.delete("/api/slides/:id",authenticateToken, async (req, res) => {
-    try {
-      await Slide.findByIdAndDelete(req.params.id);
-      res.json({ message: "Slide deletado com sucesso" });
-    } catch (error) {
-      res.status(404).json({ error: "Slide não encontrado" });
-    }
-  });
 
+  /**
+ * @swagger
+ * /api/slides/{id}:
+ *   put:
+ *     summary: Atualiza um slide existente.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do slide.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               buttonText:
+ *                 type: string
+ *               buttonLink:
+ *                 type: string
+ *               position:
+ *                 type: string
+ *                 enum: [left, center, right]
+ *     responses:
+ *       200:
+ *         description: Slide atualizado.
+ */
+app.put("/api/slides/:id", authenticateToken, async (req, res) => {
+  try {
+    const slide = await Slide.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(slide);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao atualizar slide" });
+  }
+});
+
+
+
+/**
+ * @swagger
+ * /api/slides/{id}:
+ *   delete:
+ *     summary: Deleta um slide.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do slide.
+ *     responses:
+ *       200:
+ *         description: Slide deletado.
+ */
+app.delete("/api/slides/:id", authenticateToken, async (req, res) => {
+  try {
+    await Slide.findByIdAndDelete(req.params.id);
+    res.json({ message: "Slide deletado com sucesso" });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao deletar slide" });
+  }
+});
+
+  
+ 
 
 // Rotas de Sobre Nós
 
@@ -1264,3 +1366,687 @@ app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
 
 
 
+// const express = require("express");
+// const mongoose = require("mongoose");
+// const cors = require("cors");
+// const swaggerUi = require("swagger-ui-express");
+// const swaggerJsDoc = require("swagger-jsdoc");
+// const nanoid = require("nanoid");
+// const jwt = require("jsonwebtoken");
+// const bcrypt = require("bcrypt");
+// const redis = require("redis"); // Para caching
+// const { promisify } = require("util");
+
+// require("dotenv").config();
+
+// const app = express();
+
+// // Configuração do Redis
+// const redisClient = redis.createClient();
+// const getAsync = promisify(redisClient.get).bind(redisClient);
+// const setAsync = promisify(redisClient.set).bind(redisClient);
+
+// redisClient.on("error", (err) => {
+//   console.error("Erro no Redis:", err);
+// });
+
+// // Middleware
+// app.use(cors());
+// app.use(express.json({ limit: "30mb" })); 
+// app.use(express.urlencoded({ limit: "10mb", extended: true }));
+
+// // Swagger Configuration
+// const swaggerOptions = {
+//   swaggerDefinition: {
+//     openapi: "3.0.0",
+//     info: {
+//       title: "Nutricare API",
+//       version: "1.0.0",
+//       description: "API da Nutricare para gerenciar informações do site",
+//     },
+//     servers: [
+//       {
+//         url: process.env.BASE_URL || "http://localhost:3000",
+//         description: "Servidor local",
+//       },
+//       {
+//         url: "https://api-nutricare-1.onrender.com",
+//         description: "Servidor de produção",
+//       },
+//     ],
+//   },
+//   apis: ["./index.js"],
+// };
+
+// const swaggerDocs = swaggerJsDoc(swaggerOptions);
+// app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+// // Conexão ao MongoDB
+// mongoose
+//   .connect(process.env.MONGODB_URI, {
+//     useNewUrlParser: true,
+//     useUnifiedTopology: true,
+//   })
+//   .then(() => console.log("MongoDB connected"))
+//   .catch((err) => console.log(err));
+
+
+
+//   // Função para autenticação via JWT
+// function authenticateToken(req, res, next) {
+//   const token = req.headers["authorization"]?.split(" ")[1];
+//   if (!token) return res.status(401).json({ error: "Token não fornecido" });
+
+//   const SECRET = process.env.JWT_SECRET || "secret_key";
+//   jwt.verify(token, SECRET, (err, user) => {
+//     if (err) return res.status(403).json({ error: "Token inválido" });
+//     req.user = user;
+//     next();
+//   });
+// }
+
+// // Schemas
+// const FooterSchema = new mongoose.Schema({
+//   title: { type: String, required: true },
+//   description: { type: String, required: true },
+//   phone: { type: String, required: true },
+//   whatsapp: { type: String, required: true },
+//   email: { type: String, required: true },
+//   address: { type: String, required: true },
+// });
+
+// FooterSchema.index({ title: 1 }); // Índice para melhorar buscas
+// const Footer = mongoose.model("Footer", FooterSchema);
+
+
+// const SlideSchema = new mongoose.Schema({
+//   image: { type: String, required: true },
+//   title: { type: String, required: true },
+//   description: { type: String, required: true },
+//   buttonText: { type: String, required: true },
+//   buttonLink: { type: String, required: true },
+//   position: { type: String, enum: ["left", "center", "right"], default: "center" },
+// }, { timestamps: true }); // Inclui campos de criação e atualização automática
+
+// SlideSchema.index({ title: 1 }); // Índice para melhorar buscas
+// const Slide = mongoose.model("Slide", SlideSchema);
+
+// const UserSchema = new mongoose.Schema(
+//   {
+//     username: { type: String, required: true, unique: true, index: true },
+//     password: { type: String, required: true },
+//   },
+//   { timestamps: true } // Inclui createdAt e updatedAt
+// );
+
+
+// const BlogSchema = new mongoose.Schema(
+//   {
+//     title: { type: String, required: true },
+//     description: { type: String, required: true },
+//     cards: [
+//       {
+//         tags: [String],
+//         image: { type: String, required: true },
+//         title: { type: String, required: true },
+//         description: { type: String, required: true },
+//       },
+//     ],
+//   },
+//   { timestamps: true } // Adiciona createdAt e updatedAt
+// );
+
+// const Blog = mongoose.model("Blog", BlogSchema);
+
+// // Middleware para hashing de senha antes de salvar
+// UserSchema.pre("save", async function (next) {
+//   if (!this.isModified("password")) return next();
+//   const salt = await bcrypt.genSalt(10);
+//   this.password = await bcrypt.hash(this.password, salt);
+//   next();
+// });
+
+// const User = mongoose.model("User", UserSchema);
+
+
+
+// // Middleware de caching
+// async function cacheMiddleware(req, res, next) {
+//   const cacheKey = req.originalUrl;
+//   const cachedData = await getAsync(cacheKey);
+
+//   if (cachedData) {
+//     return res.json(JSON.parse(cachedData));
+//   }
+
+//   res.sendResponse = res.json;
+//   res.json = async (body) => {
+//     await setAsync(cacheKey, JSON.stringify(body), "EX", 3600); // Expira em 1 hora
+//     res.sendResponse(body);
+//   };
+
+//   next();
+// }
+
+// // Rotas
+// /**
+//  * @swagger
+//  * /api/footer:
+//  *   get:
+//  *     summary: Retorna as informações do footer
+//  */
+// app.get("/api/footer", cacheMiddleware, async (req, res) => {
+//   try {
+//     const footer = await Footer.findOne().lean(); // Uso de lean para melhorar desempenho
+//     res.json(footer || { message: "Nenhuma informação encontrada para o footer" });
+//   } catch (error) {
+//     res.status(500).json({ error: "Erro ao buscar informações do footer" });
+//   }
+// });
+
+// /**
+//  * @swagger
+//  * /api/footer:
+//  *   post:
+//  *     summary: Cria ou atualiza as informações do footer
+//  */
+// app.post("/api/footer", async (req, res) => {
+//   try {
+//     const { title, description, phone, whatsapp, email, address } = req.body;
+//     const footerData = { title, description, phone, whatsapp, email, address };
+
+//     const footer = await Footer.findOneAndUpdate({}, footerData, { upsert: true, new: true });
+//     redisClient.del("/api/footer"); // Invalida o cache
+//     res.status(201).json(footer);
+//   } catch (error) {
+//     res.status(500).json({ error: "Erro ao criar ou atualizar footer" });
+//   }
+// });
+
+// /**
+//  * @swagger
+//  * /api/slides:
+//  *   get:
+//  *     summary: Retorna todos os slides do carrossel
+//  *     responses:
+//  *       200:
+//  *         description: Lista de slides retornada com sucesso
+//  */
+// app.get("/api/slides", cacheMiddleware, async (req, res) => {
+//   try {
+//     const slides = await Slide.find().lean(); // Uso de lean para performance
+//     res.status(200).json(slides);
+//   } catch (error) {
+//     res.status(400).json({ error: "Erro ao buscar slides" });
+//   }
+// });
+
+
+// /**
+//  * @swagger
+//  * /api/slides:
+//  *   post:
+//  *     summary: Adiciona um novo slide ao carrossel
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               image:
+//  *                 type: string
+//  *               title:
+//  *                 type: string
+//  *               description:
+//  *                 type: string
+//  *               buttonText:
+//  *                 type: string
+//  *               buttonLink:
+//  *                 type: string
+//  *               position:
+//  *                 type: string
+//  *                 enum: [left, center, right]
+//  *     responses:
+//  *       201:
+//  *         description: Slide criado com sucesso
+//  */
+// app.post("/api/slides", authenticateToken, async (req, res) => {
+//   try {
+//     const { image, title, description, buttonText, buttonLink, position } = req.body;
+//     const slide = new Slide({ image, title, description, buttonText, buttonLink, position });
+//     await slide.save();
+//     redisClient.del("/api/slides"); // Invalida o cache
+//     res.status(201).json(slide);
+//   } catch (error) {
+//     res.status(400).json({ error: "Erro ao criar slide" });
+//   }
+// });
+
+
+// /**
+//  * @swagger
+//  * /api/slides/{id}:
+//  *   put:
+//  *     summary: Atualiza um slide existente
+//  *     parameters:
+//  *       - in: path
+//  *         name: id
+//  *         required: true
+//  *         schema:
+//  *           type: string
+//  *         description: ID do slide
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               image:
+//  *                 type: string
+//  *               title:
+//  *                 type: string
+//  *               description:
+//  *                 type: string
+//  *               buttonText:
+//  *                 type: string
+//  *               buttonLink:
+//  *                 type: string
+//  *               position:
+//  *                 type: string
+//  *                 enum: [left, center, right]
+//  *     responses:
+//  *       200:
+//  *         description: Slide atualizado com sucesso
+//  */
+// app.put("/api/slides/:id", authenticateToken, async (req, res) => {
+//   try {
+//     const slide = await Slide.findByIdAndUpdate(req.params.id, req.body, { new: true });
+//     redisClient.del("/api/slides"); // Invalida o cache
+//     res.json(slide);
+//   } catch (error) {
+//     res.status(400).json({ error: "Erro ao atualizar slide" });
+//   }
+// });
+
+
+
+// /**
+//  * @swagger
+//  * /api/slides/{id}:
+//  *   delete:
+//  *     summary: Deleta um slide
+//  *     parameters:
+//  *       - in: path
+//  *         name: id
+//  *         required: true
+//  *         schema:
+//  *           type: string
+//  *         description: ID do slide
+//  *     responses:
+//  *       200:
+//  *         description: Slide deletado com sucesso
+//  */
+// app.delete("/api/slides/:id", authenticateToken, async (req, res) => {
+//   try {
+//     await Slide.findByIdAndDelete(req.params.id);
+//     redisClient.del("/api/slides"); // Invalida o cache
+//     res.json({ message: "Slide deletado com sucesso" });
+//   } catch (error) {
+//     res.status(404).json({ error: "Slide não encontrado" });
+//   }
+// });
+
+
+// /**
+//  * @swagger
+//  * /api/auth/register:
+//  *   post:
+//  *     summary: Registra um novo usuário
+//  *     tags:
+//  *       - Autenticação
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               username:
+//  *                 type: string
+//  *                 description: Nome de usuário único
+//  *               password:
+//  *                 type: string
+//  *                 description: Senha do usuário
+//  *     responses:
+//  *       201:
+//  *         description: Usuário registrado com sucesso
+//  *       400:
+//  *         description: Erro ao registrar usuário
+//  */
+// app.post("/api/auth/register", async (req, res) => {
+//   try {
+//     const { username, password } = req.body;
+
+//     // Verifica se o usuário já existe
+//     const existingUser = await User.findOne({ username });
+//     if (existingUser) return res.status(400).json({ error: "Usuário já existe" });
+
+//     const newUser = new User({ username, password });
+//     await newUser.save();
+
+//     res.status(201).json({ message: "Usuário registrado com sucesso" });
+//   } catch (error) {
+//     res.status(500).json({ error: "Erro ao registrar usuário" });
+//   }
+// });
+
+
+// /**
+//  * @swagger
+//  * /api/auth/login:
+//  *   post:
+//  *     summary: Realiza login de usuário e retorna um token
+//  *     tags:
+//  *       - Autenticação
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               username:
+//  *                 type: string
+//  *                 description: Nome de usuário
+//  *               password:
+//  *                 type: string
+//  *                 description: Senha do usuário
+//  *     responses:
+//  *       200:
+//  *         description: Login realizado com sucesso
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 token:
+//  *                   type: string
+//  *                   description: Token JWT para autenticação
+//  *       401:
+//  *         description: Usuário ou senha inválidos
+//  */
+// app.post("/api/auth/login", async (req, res) => {
+//   try {
+//     const { username, password } = req.body;
+
+//     const user = await User.findOne({ username });
+//     if (!user) return res.status(401).json({ error: "Usuário ou senha inválidos" });
+
+//     const isPasswordValid = await bcrypt.compare(password, user.password);
+//     if (!isPasswordValid) return res.status(401).json({ error: "Usuário ou senha inválidos" });
+
+//     const token = jwt.sign({ id: user._id, username: user.username }, process.env.JWT_SECRET, {
+//       expiresIn: "1h",
+//     });
+
+//     res.status(200).json({ token });
+//   } catch (error) {
+//     res.status(500).json({ error: "Erro ao realizar login" });
+//   }
+// });
+
+// /**
+//  * @swagger
+//  * /api/auth/me:
+//  *   get:
+//  *     summary: Retorna os dados do usuário autenticado
+//  *     tags:
+//  *       - Autenticação
+//  *     security:
+//  *       - bearerAuth: []
+//  *     responses:
+//  *       200:
+//  *         description: Dados do usuário autenticado retornados com sucesso
+//  *       401:
+//  *         description: Token inválido ou ausente
+//  */
+// app.get("/api/auth/me", authenticateToken, async (req, res) => {
+//   try {
+//     const user = await User.findById(req.user.id).select("-password"); // Exclui a senha
+//     res.json(user);
+//   } catch (error) {
+//     res.status(500).json({ error: "Erro ao buscar informações do usuário" });
+//   }
+// });
+
+// /**
+//  * @swagger
+//  * /api/auth/update:
+//  *   put:
+//  *     summary: Atualiza os dados do usuário autenticado
+//  *     tags:
+//  *       - Autenticação
+//  *     security:
+//  *       - bearerAuth: []
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               username:
+//  *                 type: string
+//  *               password:
+//  *                 type: string
+//  *     responses:
+//  *       200:
+//  *         description: Dados do usuário atualizados com sucesso
+//  */
+// app.put("/api/auth/update", authenticateToken, async (req, res) => {
+//   try {
+//     const { username, password } = req.body;
+
+//     const updatedData = {};
+//     if (username) updatedData.username = username;
+//     if (password) updatedData.password = await bcrypt.hash(password, 10);
+
+//     const updatedUser = await User.findByIdAndUpdate(req.user.id, updatedData, { new: true });
+//     res.json(updatedUser);
+//   } catch (error) {
+//     res.status(500).json({ error: "Erro ao atualizar dados do usuário" });
+//   }
+// });
+
+
+// /**
+//  * @swagger
+//  * /api/auth/delete:
+//  *   delete:
+//  *     summary: Deleta o usuário autenticado
+//  *     tags:
+//  *       - Autenticação
+//  *     security:
+//  *       - bearerAuth: []
+//  *     responses:
+//  *       200:
+//  *         description: Usuário deletado com sucesso
+//  */
+// app.delete("/api/auth/delete", authenticateToken, async (req, res) => {
+//   try {
+//     await User.findByIdAndDelete(req.user.id);
+//     res.json({ message: "Usuário deletado com sucesso" });
+//   } catch (error) {
+//     res.status(500).json({ error: "Erro ao deletar usuário" });
+//   }
+// });
+
+
+// /**
+//  * @swagger
+//  * /api/blog:
+//  *   get:
+//  *     summary: Retorna os dados do blog
+//  *     tags:
+//  *       - Blog
+//  *     responses:
+//  *       200:
+//  *         description: Dados do blog retornados com sucesso
+//  */
+// app.get("/api/blog", cacheMiddleware, async (req, res) => {
+//   try {
+//     const blog = await Blog.findOne().lean(); // Uso de lean para melhor desempenho
+//     res.json(blog || { message: "Nenhum dado encontrado para o blog" });
+//   } catch (error) {
+//     res.status(500).json({ error: "Erro ao buscar dados do blog" });
+//   }
+// });
+
+// /**
+//  * @swagger
+//  * /api/blog:
+//  *   post:
+//  *     summary: Cria ou atualiza os dados do blog
+//  *     tags:
+//  *       - Blog
+//  *     security:
+//  *       - bearerAuth: []
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               title:
+//  *                 type: string
+//  *               description:
+//  *                 type: string
+//  *               cards:
+//  *                 type: array
+//  *                 items:
+//  *                   type: object
+//  *                   properties:
+//  *                     tags:
+//  *                       type: array
+//  *                       items:
+//  *                         type: string
+//  *                     image:
+//  *                       type: string
+//  *                     title:
+//  *                       type: string
+//  *                     description:
+//  *                       type: string
+//  *     responses:
+//  *       201:
+//  *         description: Blog criado ou atualizado com sucesso
+//  */
+// app.post("/api/blog", authenticateToken, async (req, res) => {
+//   try {
+//     const { title, description, cards } = req.body;
+//     const blogData = { title, description, cards };
+
+//     const blog = await Blog.findOneAndUpdate({}, blogData, {
+//       upsert: true,
+//       new: true,
+//     });
+//     redisClient.del("/api/blog"); // Invalida o cache
+//     res.status(201).json(blog);
+//   } catch (error) {
+//     res.status(400).json({ error: "Erro ao criar ou atualizar dados do blog" });
+//   }
+// });
+
+
+// /**
+//  * @swagger
+//  * /api/blog/cards/{id}:
+//  *   put:
+//  *     summary: Atualiza um card existente do blog
+//  *     tags:
+//  *       - Blog
+//  *     security:
+//  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: id
+//  *         required: true
+//  *         schema:
+//  *           type: string
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               tags:
+//  *                 type: array
+//  *                 items:
+//  *                   type: string
+//  *               image:
+//  *                 type: string
+//  *               title:
+//  *                 type: string
+//  *               description:
+//  *                 type: string
+//  *     responses:
+//  *       200:
+//  *         description: Card atualizado com sucesso
+//  */
+// app.put("/api/blog/cards/:id", authenticateToken, async (req, res) => {
+//   try {
+//     const blog = await Blog.findOne();
+//     const card = blog.cards.id(req.params.id);
+//     if (!card) return res.status(404).json({ error: "Card não encontrado" });
+
+//     Object.assign(card, req.body);
+//     await blog.save();
+//     redisClient.del("/api/blog"); // Invalida o cache
+//     res.json(blog);
+//   } catch (error) {
+//     res.status(400).json({ error: "Erro ao atualizar card do blog" });
+//   }
+// });
+
+// /**
+//  * @swagger
+//  * /api/blog/cards/{id}:
+//  *   delete:
+//  *     summary: Remove um card do blog
+//  *     tags:
+//  *       - Blog
+//  *     security:
+//  *       - bearerAuth: []
+//  *     parameters:
+//  *       - in: path
+//  *         name: id
+//  *         required: true
+//  *         schema:
+//  *           type: string
+//  *     responses:
+//  *       200:
+//  *         description: Card removido com sucesso
+//  */
+// app.delete("/api/blog/cards/:id", authenticateToken, async (req, res) => {
+//   try {
+//     const blog = await Blog.findOne();
+//     const card = blog.cards.id(req.params.id);
+//     if (!card) return res.status(404).json({ error: "Card não encontrado" });
+
+//     card.remove();
+//     await blog.save();
+//     redisClient.del("/api/blog"); // Invalida o cache
+//     res.json({ message: "Card removido com sucesso" });
+//   } catch (error) {
+//     res.status(400).json({ error: "Erro ao remover card do blog" });
+//   }
+// });
+
+
+
+// // Porta
+// const PORT = process.env.PORT || 3000;
+// app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
